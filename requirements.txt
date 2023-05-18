@@ -1,4 +1,7 @@
-jsonlines
+jsonlines==3.1.0
 openai==0.27.0
-datasets
-tenacity
+datasets==2.12.0
+tenacity==8.2.2
+astunparse==1.6.3
+langchain==0.0.173
+python-dotenv==1.0.0

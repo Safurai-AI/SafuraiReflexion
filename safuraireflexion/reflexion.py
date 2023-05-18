@@ -1,9 +1,7 @@
 from utils import write_jsonl, parse_body
 from executors import py_evaluate, py_execute
 from generators import py_generate_func_impl, py_generate_self_reflection, py_generate_internal_tests
-
 from typing import List
-
 
 def run_reflexion(
         dataset: List[dict],
@@ -35,21 +33,29 @@ def run_reflexion(
     assert not self_reflection_generator is None
     assert not func_impl_generator is None
     assert not internal_test_generator is None
-
+    
+    results = []
     num_items = len(dataset)
     num_success = 0
     for i, item in enumerate(dataset):
         cur_pass = 0
         is_solved = False
         reflections = []
-        cur_func_impl = ""
+        # cur_func_impl = ""
+        cur_func_impl = item["cur_func_impl"]
+        
         while cur_pass < pass_at_k and not is_solved:
+            # print(f"********* Curr pass {cur_pass}**************")
+            # print("Checking if works without  reflect")
+            # import pdb;pdb.set_trace()
             tests_i = internal_test_generator(item["prompt"], model, 1)
-
+            # print("test_i\n", tests_i)
             # first attempt
-            cur_func_impl = parse_body(func_impl_generator(item["prompt"], model, "simple"))
+            # cur_func_impl = parse_body(func_impl_generator(item["prompt"], model, "simple"))
             is_passing, feedback = execute(cur_func_impl, tests_i)
-
+            
+            # print("is_passing\n", is_passing)
+            # print("feedback\n", feedback)
             # if solved, exit early
             if is_passing:
                 is_solved = True
@@ -60,10 +66,11 @@ def run_reflexion(
             cur_iter = 1
             cur_feedback = feedback
             while cur_iter < max_iters:
+                # print("Reflect to find a solution")
                 # get self-reflection
                 reflection = self_reflection_generator(cur_func_impl, cur_feedback, model)
                 reflections += [reflection]
-
+                # print("reflection\n", reflection)
                 # apply self-reflection in the next attempt
                 cur_func_impl = parse_body(func_impl_generator(
                     func_sig=item["prompt"],
@@ -73,26 +80,34 @@ def run_reflexion(
                     feedback=cur_feedback,
                     self_reflection=reflection
                 ))
-
+                
+                # print("cur_func_impl\n", cur_func_impl)
                 # check if all internal unit tests pass
                 is_passing, cur_feedback = execute(cur_func_impl, tests_i)
-
+                # print("is_passing\n", is_passing)
+                # print("cur_feedback\n", cur_feedback)
+                
                 # if solved, check if it passes the real tests, exit early
-                if is_passing or cur_iter == max_iters - 1:
-                    is_passing = evaluate(item["entry_point"], cur_func_impl, item["test"], timeout=10)
-                    if is_passing:
-                        item["solution"] = cur_func_impl
-                        is_solved = True
-                        num_success += 1
-                    break
+                # if is_passing or cur_iter == max_iters - 1:
+                #     is_passing = evaluate(item["entry_point"], cur_func_impl, item["test"], timeout=10)
+                #     if is_passing:
+                #         item["solution"] = cur_func_impl
+                #         is_solved = True
+                #         num_success += 1
+                #     break
 
                 cur_iter += 1
             cur_pass += 1
 
         item["is_solved"] = is_solved
+        item["unit_tests"] = tests_i
         item["reflections"] = reflections
         item["solution"] = cur_func_impl
-        write_jsonl(log_path, [item], append=True)
+        results.append(item)
+        # write_jsonl(log_path, [item], append=True)
+        # import pdb;pdb.set_trace()
 
         if verbose:
             print(f'completed {i+1}/{num_items}: acc = {round(num_success/(i+1), 2)}')
+
+    return results

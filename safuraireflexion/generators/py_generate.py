@@ -6,7 +6,7 @@ PY_SIMPLE_COMPLETION_INSTRUCTION = "# Write the body of this function only."
 PY_REFLEXION_COMPLETION_INSTRUCTION = "You are PythonGPT. You will be given your past function implementation, a series of unit tests, and a hint to change the implementation appropriately. Apply the changes below by writing the body of this function only.\n\n-----"
 PY_SELF_REFLECTION_COMPLETION_INSTRUCTION = "You are PythonGPT. You will be given a function implementation and a series of unit tests. Your goal is to write a few sentences to explain why your implementation is wrong as indicated by the tests. You will need this as a hint when you try again later. Only provide the few sentence description in your answer, not the implementation.\n\n-----"
 PY_SIMPLE_CHAT_INSTRUCTION = "You are PythonGPT. You will be given a function signature and docstring. You should fill in the following text of the missing function body. For example, the first line of the completion should have 4 spaces for the indendation so that it fits syntactically with the preceding signature."
-PY_REFLEXION_CHAT_INSTRUCTION = "You are PythonGPT. You will be given your past function implementation, a series of unit tests, and a hint to change the implementation appropriately. Apply the changes below by writing the body of this function only. You should fill in the following text of the missing function body. For example, the first line of the completion should have 4 spaces for the indendation so that it fits syntactically with the preceding signature."
+PY_REFLEXION_CHAT_INSTRUCTION = "You are PythonGPT. You will be given your past function implementation, a series of unit tests, and a hint to change the implementation appropriately. Apply the changes below by writing the body of this function only. You should fill in the following text of the missing function body. For example, the first line of the completion should have 4 spaces for the indendation so that it fits syntactically with the preceding signature. Does not try to import packages, only use the mocked packages from the current implementation"
 PY_SELF_REFLECTION_CHAT_INSTRUCTION = "You are PythonGPT. You will be given a function implementation and a series of unit tests. Your goal is to write a few sentences to explain why your implementation is wrong as indicated by the tests. You will need this as a hint when you try again later. Only provide the few sentence description in your answer, not the implementation."
 
 PY_TEST_GENERATION_FEW_SHOT = """For example:
@@ -34,7 +34,7 @@ PY_TEST_GENERATION_COMPLETION_INSTRUCTION = f"""You are PythonGPT, an AI coding 
 
 {PY_TEST_GENERATION_FEW_SHOT}"""
 
-PY_TEST_GENERATION_CHAT_INSTRUCTION = """You are CodexGPT, an AI coding assistant that can write unique, diverse, and intuitive unit tests for functions given the signature and docstring. Please generate at least 5 tests starting with the word "assert" for the given code even it is working perfectly."""
+PY_TEST_GENERATION_CHAT_INSTRUCTION = """You are CodexGPT, an AI coding assistant that can write unique, diverse, and intuitive unit tests for functions given the signature and docstring. Please generate at least 5 tests starting with the word "assert" for the given code."""
 
 def py_generate_self_reflection(func: str, feedback: str, model: str) -> str:
     if model == "gpt-4" or model == "gpt-3.5-turbo":
@@ -58,7 +58,7 @@ def py_generate_func_impl(
 
     if model == "gpt-4" or model == "gpt-3.5-turbo":
         if strategy == "reflexion":
-            message = f"previous implementation:\n{prev_func_impl}\n\nunit tests:\n{feedback}\n\nhint:\n{self_reflection}\n\n# improved implementation\n{func_sig}"
+            message = f"previous implementation:\n{prev_func_impl}\n\nunit tests:\n{feedback}\n\nhint:\n{self_reflection}\n\n# improved implementation\n{func_sig}. Does not import required packages, use mocks from previous implementation."
             func_body = gpt_chat(model, PY_REFLEXION_CHAT_INSTRUCTION, message)
         else:
             func_body = gpt_chat(model, PY_SIMPLE_CHAT_INSTRUCTION if strategy == "simple" else PY_REFLEXION_CHAT_INSTRUCTION, func_sig)
@@ -69,7 +69,7 @@ def py_generate_func_impl(
         else:
             prompt = f"{PY_SIMPLE_COMPLETION_INSTRUCTION}\n{func_sig}"
             func_body = gpt_completion(model, prompt)
-    return func_sig + func_body # type: ignore
+    return func_body.strip() # func_sig + func_body # type: ignore
 
 def py_generate_internal_tests(func_sig: str, model: str, committee_size: int=1) -> List[str]:
     def parse_tests(tests: str) -> List[str]:
