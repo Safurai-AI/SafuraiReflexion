@@ -30,41 +30,11 @@ assert has_close_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.0], 0.1) == True
 assert has_close_elements([1.1, 2.2, 3.1, 4.1, 5.1], 1.0) == True
 assert has_close_elements([1.1, 2.2, 3.1, 4.1, 5.1], 0.5) == False"""
 
-
-PY_TEST_GENERATION_CREATIVE = """For example:
-
-func signature:
-def py_generate_self_reflection(func: str, feedback: str, model: str) -> str:
-    if model == "gpt-4" or model == "gpt-3.5-turbo":
-        reflection = gpt_chat(model, PY_SELF_REFLECTION_CHAT_INSTRUCTION, f'{func}\n\n{feedback}\n\nExplanation:')
-    else:
-        reflection = gpt_completion(model, f'{PY_SELF_REFLECTION_COMPLETION_INSTRUCTION}\n{func}\n\n{feedback}\n\nExplanation:')
-    return reflection # type: ignore
-
-integration tests:
-def test_happy_path_gpt_chat(self):
-        func = "def add(a, b):\n    return a - b"
-        feedback = "The function is supposed to add two numbers, but it is actually subtracting them."
-        model = "gpt-4"
-        reflection = py_generate_self_reflection(func, feedback, model)
-        assert isinstance(reflection, str)
-
-def test_edge_case_invalid_model(self):
-        func = "def add(a, b):\n    return a + b"
-        feedback = "The function is working correctly."
-        model = "invalid_model"
-        reflection = py_generate_self_reflection(func, feedback, model)
-        assert isinstance(reflection, str)
-
-"""
-
 PY_TEST_GENERATION_COMPLETION_INSTRUCTION = f"""You are PythonGPT, an AI coding assistant that can write unique, diverse, and intuitive unit tests for functions given the signature and docstring.
 
 {PY_TEST_GENERATION_FEW_SHOT}"""
 
-PY_TEST_GENERATION_CHAT_INSTRUCTION = """You are CodexGPT, an AI coding assistant that can write unique, diverse, and intuitive unit tests for functions given the signature and docstring."""
-
-PY_INTEGRATION_TEST_GENERATION_CHAT_INSTRUCTION = """You are CodexGPT, an AI coding assistant that can write unique, diverse, and intuitive integration tests for functions given the signature and docstring."""
+PY_TEST_GENERATION_CHAT_INSTRUCTION = """You are CodexGPT, an AI coding assistant that can write unique, diverse, and intuitive unit tests for functions given the signature and docstring. Please generate at least 5 tests starting with the word "assert" for the given code even it is working perfectly."""
 
 def py_generate_self_reflection(func: str, feedback: str, model: str) -> str:
     if model == "gpt-4" or model == "gpt-3.5-turbo":
@@ -111,35 +81,9 @@ def py_generate_internal_tests(func_sig: str, model: str, committee_size: int=1)
     if model == "gpt-4" or model == "gpt-3.5-turbo":
         message = f'{PY_TEST_GENERATION_FEW_SHOT}\n\nfunc signature:\n{func_sig}\nunit tests:'
         output = gpt_chat(model, PY_TEST_GENERATION_CHAT_INSTRUCTION, message)
+
     else:
         prompt = f'{PY_TEST_GENERATION_COMPLETION_INSTRUCTION}\n\nfunc signature:\n{func_sig}\nunit tests:'
-        output = gpt_completion(model, prompt)
-    cur_tests: List[str] = parse_tests(output) # type: ignore
-
-    # TODO: NOT SUPPORTED YET
-    # someone implement this
-    # cur_refinement_num = 0
-    # while cur_refinement_num < committee_size:
-        # # TODO: implement
-        # cur_tests = ... # type: ignore
-
-        # cur_refinement_num += 1
-
-    return cur_tests
-
-
-def py_generate_intregration_tests(func_sig: str, model: str, committee_size: int=1) -> List[str]:
-    def parse_tests(tests: str) -> List[str]:
-        return [test.strip() for test in tests.splitlines() if "assert" in test]
-    """
-    Generates tests for a function using a refinement technique with the number
-    of specified commmittee members.
-    """
-    if model == "gpt-4" or model == "gpt-3.5-turbo":
-        message = f'{PY_TEST_GENERATION_CREATIVE}\n\nfunc signature:\n{func_sig}\integration tests:'
-        output = gpt_chat(model, PY_INTEGRATION_TEST_GENERATION_CHAT_INSTRUCTION, message)
-    else:
-        prompt = f'{PY_INTEGRATION_TEST_GENERATION_CHAT_INSTRUCTION}\n\nfunc signature:\n{func_sig}\integration tests:'
         output = gpt_completion(model, prompt)
     cur_tests: List[str] = parse_tests(output) # type: ignore
 
